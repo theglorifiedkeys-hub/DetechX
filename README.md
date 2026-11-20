@@ -38,8 +38,14 @@ On tracking, confirm the fundi has arrived, start work, confirm completion, revi
 
 ### Map lab and operations website
 
-Open **Try the Dar map demo** to compare an offline illustrated map and interactive street tiles. **My location** is optional and stays on-device. Open **Admin demo** to search sample jobs, assign a fundi and walk through test payment status. On Flutter web, the routes are `/#/map` and `/#/admin`; admin demo data resets when you leave the page. See the [Firebase handoff](docs/firebase-roadmap.md) for local permissions, hosting and the backend plan.
+Open **Wasifu → Ramani ya Dar es Salaam** for the street map, or **Wasifu → Ingia** for the local staff role demo. See the [Firebase handoff](docs/firebase-roadmap.md) for permissions, hosting and the backend plan.
 
 ### Premium marketing website (React / Vite)
 
 The standalone website lives in [`website/`](website/README.md). It has its own Vercel config and does not replace the Flutter app. See the [web motion reference shortlist](docs/web-motion-references.md) for WebGL, GLSL, Barba, Anime.js, tween.js and GSAP examples.
+
+### Android 1.0.1: Dar service pilot
+
+Home no longer exposes staff tools. Open **Wasifu → Ingia** and choose **Mteja**, **Fundi**, or **Msimamizi**. These are local preview roles, not authentication. Demo staff share an in-memory job queue; the selected fundi only sees their sample jobs and cannot record payments. Android Back returns from staff and tracking screens normally, and returns a secondary Home tab to **Mwanzo** before leaving the app.
+
+The Android launcher uses the ice-blue artwork in `assets/launcher.png`; CI installs the legacy and adaptive icons using `scripts/android_launcher.py` after generating the runner. The service-area picker requests GPS only on **Tambua eneo langu**, suggests a supported Dar neighborhood, and saves only the area the user confirms. Manual selection remains available. Both map screens now use Esri topographic tiles, with attribution and an internet retry; no illustrated map or OpenStreetMap tile endpoint remains. Tracking still uses a sample path, not live navigation. Confirm the map provider’s licensing, attribution and coverage before any commercial rollout.

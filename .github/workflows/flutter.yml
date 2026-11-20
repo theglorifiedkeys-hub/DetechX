@@ -53,6 +53,8 @@ jobs:
         run: |
           flutter create --no-pub --platforms=android --org com.detechx --project-name detechx "$RUNNER_TEMP/detechx"
           cp -R "$RUNNER_TEMP/detechx/android" android
+          python -m pip install Pillow
+          python scripts/android_launcher.py
           sed -i '/<application/i\    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
           sed -i 's/android:label="detechx"/android:label="DetechX"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts

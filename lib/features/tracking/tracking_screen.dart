@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import '../../core/lucide_icons.dart';
 import '../../app/theme.dart';
+import '../../app/router.dart';
 import '../../core/surfaces.dart';
 import '../service_data.dart';
 import '../payments/service_checkout.dart';
-import 'dotted_map.dart';
+import 'map_lab.dart';
 
 class TrackingScreen extends StatefulWidget {
   const TrackingScreen({
@@ -22,10 +23,6 @@ class TrackingScreen extends StatefulWidget {
 class _TrackingScreenState extends State<TrackingScreen>
     with TickerProviderStateMixin {
   static const _tech = MockServiceRepository.technician;
-  late final _route = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
   late final _trip = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 48),
@@ -182,12 +179,10 @@ class _TrackingScreenState extends State<TrackingScreen>
     super.didChangeDependencies();
     final reduce = MediaQuery.disableAnimationsOf(context);
     if (reduce) {
-      _route.value = 1;
       _trip.stop();
     }
     if (!reduce && !_animated) {
       _animated = true;
-      _route.forward();
       _trip.forward();
     }
     if (!reduce && _animated && !_trip.isCompleted && !_trip.isAnimating) {
@@ -198,7 +193,6 @@ class _TrackingScreenState extends State<TrackingScreen>
   @override
   void dispose() {
     _checkout.dispose();
-    _route.dispose();
     _trip.dispose();
     _sheet.dispose();
     super.dispose();
@@ -225,10 +219,10 @@ class _TrackingScreenState extends State<TrackingScreen>
   void _options() => showPanel<void>(context, 'Trip options', [
     ListTile(
       leading: const Icon(Icons.map_outlined),
-      title: const Text('Compare Dar maps'),
+      title: const Text('Ramani ya Dar es Salaam'),
       onTap: () {
         Navigator.pop(context);
-        Navigator.pushNamed(context, '/map');
+        openFlow(context, MapLab(neighborhood: widget.neighborhood));
       },
     ),
     const ListTile(
@@ -441,7 +435,11 @@ class _TrackingScreenState extends State<TrackingScreen>
             const AmbientCoralBackdrop(center: Alignment(.36, .33)),
             Positioned.fill(
               bottom: 150,
-              child: DottedVectorMapCanvas(route: _route, trip: _trip),
+              child: DarStreetMap(
+                trip: _trip,
+                neighborhood: widget.neighborhood,
+                tracking: true,
+              ),
             ),
             Positioned(
               top: 10,
@@ -451,14 +449,10 @@ class _TrackingScreenState extends State<TrackingScreen>
                 bottom: false,
                 child: Column(
                   children: [
-                    FlowHeader(
-                      'Your Technician',
-                      onOptions: _options,
-                      blur: true,
-                    ),
+                    FlowHeader('Fundi wako', onOptions: _options, blur: true),
                     const SizedBox(height: 12),
                     Text(
-                      '${widget.neighborhood.isEmpty ? 'DAR ES SALAAM' : widget.neighborhood.toUpperCase()}  /  SIMULATED ROUTE',
+                      '${widget.neighborhood.isEmpty ? 'DAR ES SALAAM' : widget.neighborhood.toUpperCase()}  /  NJIA YA MAJARIBIO',
                       style: const TextStyle(
                         fontSize: 10,
                         letterSpacing: 1.5,
