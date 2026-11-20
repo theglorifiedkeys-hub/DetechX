@@ -41,6 +41,7 @@ jobs:
           flutter create --no-pub --platforms=android --org com.detechx --project-name detechx "$RUNNER_TEMP/detechx"
           cp -R "$RUNNER_TEMP/detechx/android" android
           sed -i 's/android:label="detechx"/android:label="DetechX"/' android/app/src/main/AndroidManifest.xml
+          sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
       - name: Build installable APK
         run: |
           set +e

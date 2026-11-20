@@ -40,8 +40,9 @@ class _TrackingScreenState extends State<TrackingScreen>
       _route.forward();
       _trip.forward();
     }
-    if (!reduce && _animated && !_trip.isCompleted && !_trip.isAnimating)
+    if (!reduce && _animated && !_trip.isCompleted && !_trip.isAnimating) {
       _trip.forward();
+    }
   }
 
   @override

@@ -37,6 +37,7 @@ class MockServiceRepository {
     'Mike Richardson',
     'HVAC Specialist',
     248,
+    '4.9',
     'NY • DX 248',
   );
   static const maintenance = DiagnosticResult(
