@@ -15,12 +15,12 @@ To generate mobile platform runners locally, run `flutter create --platforms=and
 
 ## Try the flow
 
-1. Select a service address or describe an issue on Home. An empty submission starts the sample AC conversation.
+1. Choose a Dar es Salaam neighborhood and describe an issue on Home. An empty submission opens a fresh conversation.
 2. Pick **Normal**, **Weak**, or **Not sure** to see a diagnosis and estimate. The assistant also handles category-specific intake from **Quick Services**.
 3. Tap **Find a Technician** to see the animated route and estimated arrival. Drag the technician sheet handle or tap the chevrons for vehicle and certification details.
-4. The upcoming booking also opens tracking. **Call** and **Message** are explicitly simulated.
+4. Edit your name and Tanzanian contact number under **Profile**, or turn on **Reduce motion** in **Settings**. **Call** and **Message** are explicitly simulated.
 
-Diagnostics are rule-based and dispatch is simulated. There is no AI backend, GPS feed, real booking, or outbound communication. Photos and videos can be selected locally; the chat displays their filenames and does not upload or analyze them. Address choices and chat history are session-only.
+Diagnostics are rule-based and dispatch is simulated. There is no AI backend, GPS feed, real booking, or outbound communication. Photos and videos can be selected locally; the chat displays their filenames and does not upload or analyze them. Profile, service neighborhood, and motion preferences are saved on the device. Chat history is session-only. Home uses East Africa Time and estimates are shown in Tanzanian shillings (TZS).
 
 ## Verify
 
@@ -31,3 +31,7 @@ flutter build web
 ```
 
 The widget tests cover issue handoff, keyboard insets, estimate propagation, and the simulated call sheet at 360px and 430px widths. CI runs analysis, tests, and a web build.
+
+### Test a service through payment
+
+On tracking, confirm the fundi has arrived, start work, confirm completion, review the TZS test invoice, and confirm a test payment. A local receipt appears; no mobile-money prompt or charge is sent. The visit and receipt are session-only. See [the Snippe integration plan](docs/snippe-payments.md) for merchant onboarding and the backend steps needed to enable real payments.

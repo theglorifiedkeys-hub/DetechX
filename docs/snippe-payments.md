@@ -1,0 +1,21 @@
+# Snippe integration plan
+
+This branch runs a **local simulated checkout only**. It never sends a payment request, collects a mobile-money PIN or marks a real invoice as settled. The `PaymentGateway` contract gives the Flutter screen a boundary for a future adapter that calls the DetechX backend, not Snippe directly.
+
+## When merchant onboarding is ready
+
+1. Complete the [Snippe merchant KYC](https://dashboard.snippe.sh/dashboard/account/kyc?nav=settings) privately. Confirm the enabled payment methods, supported test environment, API version, webhook verification mechanism and reconciliation endpoints with Snippe. [Snippe](https://snippe.sh/) advertises M-Pesa, Airtel Money and bank payments; what DetechX can offer depends on the approved account.
+2. Save jobs and invoices on the backend. Enforce ownership, authorized technician milestones and customer confirmation. Generate the final invoice in TZS server-side after the job is complete. The app must not be able to set the charge amount or mark a job paid.
+3. Create or reuse one active payment attempt per invoice with a server-side idempotency key. Keep Snippe credentials in server-side secret storage. Return a hosted checkout action (or a mobile-money request status, depending on approved methods), not credentials. Use an opaque invoice/attempt ID when polling.
+4. Treat mobile redirects and client confirmations as UX signals only. Verify the authenticated provider callback or check provider status from the backend; reconcile invoice identity, currency, amount and reference before issuing a receipt. Handle duplicate or out-of-order events and reconcile pending attempts before retrying. Keep checkout pending on ambiguous failures rather than creating a second charge.
+5. Validate the real flow with test credentials before enabling payments: success, declined, expired, duplicate callback, network timeout and app restart. Confirm fundi payouts and refunds separately; they are not part of this checkout.
+
+## API and pricing review (2026-11-20)
+
+- [Snippe Payments](https://docs.snippe.sh/docs/2026-01-25/payments) documents `POST /v1/payments` for mobile money and `GET /v1/payments/{reference}` for status. Use a fixed server-issued amount (integer TZS, minimum 500). Store an idempotency key of at most 30 characters with each attempt; the provider caches keys for 24 hours. Keep durable deduplication on our side as well. The [hosted sessions documentation](https://docs.snippe.sh/docs/2026-01-25/sessions) lists JWT authentication for merchant session endpoints, so confirm API-key access before choosing hosted checkout for a server integration.
+- [Webhook verification](https://docs.snippe.sh/docs/2026-01-25/webhooks) uses HMAC-SHA256 over the timestamp and raw body. Verify before processing, deduplicate by event ID, and reconcile against the stored invoice and provider reference. Provider pages give different default expiry descriptions; rely on provider status and the returned expiry, not a hardcoded timer.
+- [Snippe pricing](https://snippe.sh/pricing) lists 2.5% collection and TZS 1,500 per payout; its [terms](https://snippe.sh/terms) list 2% collection. Budget 2.5% pending a written quote. On a TZS 50,000 invoice with one separate payout, that's TZS 2,750 before any additional applicable charges.
+- [AzamPay pricing](https://azampay.com/pricing) lists 1% if the customer pays operator fees, or 3% merchant absorption, plus TZS 200 for disbursement to other networks. On the same invoice with one external payout and merchant absorption, that's TZS 1,700. Verify the payout tariff applies to third-party technician wallets, settlement timing, taxes, and any minimums.
+- [ClickPesa pricing](https://clickpesa.com/payment-gateway/pricing/) lists BillPay rates of 1% M-Pesa/Airtel, 2% HaloPesa and 2.5% Mixx, but customer-paid USSD push fees are tiered and add to operator fees. Compare like-for-like payment methods, not just the lowest displayed percentage.
+
+**Decision:** Get merchant-specific all-in quotes from Snippe and AzamPay for TZS 35,000, 50,000 and 80,000 payments, with and without a technician wallet payout. Favor AzamPay if its published absorption and external payout rates apply to this model; keep Snippe as the pilot option if onboarding and testing are available first. No live provider is connected in the APK.

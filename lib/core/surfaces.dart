@@ -127,8 +127,9 @@ class _SpringScaleTapState extends State<SpringScaleTap>
     with SingleTickerProviderStateMixin {
   late final _scale = AnimationController.unbounded(vsync: this, value: 1);
   void release() {
-    if (!MediaQuery.disableAnimationsOf(context))
+    if (!MediaQuery.disableAnimationsOf(context)) {
       _scale.animateWith(SpringSimulation(spring, _scale.value, 1, 0));
+    }
   }
 
   @override
@@ -151,12 +152,13 @@ class _SpringScaleTapState extends State<SpringScaleTap>
           onTap: widget.onTap,
           onTapDown: (_) {
             HapticFeedback.lightImpact();
-            if (!MediaQuery.disableAnimationsOf(context))
+            if (!MediaQuery.disableAnimationsOf(context)) {
               _scale.animateTo(
                 .95,
                 duration: const Duration(milliseconds: 110),
                 curve: Curves.easeOutCubic,
               );
+            }
           },
           onTapUp: (_) => release(),
           onTapCancel: release,
@@ -418,10 +420,11 @@ Future<XFile?> pickAttachment(BuildContext context) async {
         ? picker.pickVideo(source: ImageSource.gallery)
         : picker.pickImage(source: ImageSource.gallery));
   } catch (_) {
-    if (context.mounted)
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open your media library.')),
       );
+    }
     return null;
   }
 }

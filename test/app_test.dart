@@ -6,12 +6,28 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('mock diagnoses reflect airflow and service category', () {
     const repository = MockServiceRepository();
-    expect(repository.diagnose(initialIssue, 'Normal').estimate, r'$89 – $149');
-    expect(repository.diagnose(initialIssue, 'Weak').estimate, r'$75 – $135');
+    expect(
+      repository.diagnose(initialIssue, 'Normal').estimate,
+      'TZS 45,000 – 80,000',
+    );
+    expect(
+      repository.diagnose(initialIssue, 'Weak').estimate,
+      'TZS 35,000 – 65,000',
+    );
     expect(
       repository.diagnose('A leaking pipe', 'Not sure').service,
       'Plumbing Diagnostic',
     );
+  });
+
+  test('greetings use East Africa Time, not the device timezone', () {
+    expect(darTime(DateTime.utc(2026, 11, 19, 23)).day, 20);
+    expect(
+      darGreeting(darTime(DateTime.utc(2026, 11, 20, 6)).hour),
+      'Habari za asubuhi',
+    );
+    expect(darGreeting(14), 'Habari za mchana');
+    expect(darGreeting(19), 'Habari za jioni');
   });
 
   for (final width in [360.0, 430.0]) {
@@ -22,7 +38,7 @@ void main() {
       tester.view.physicalSize = Size(width, 760);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(const DetechXApp());
+      await tester.pumpWidget(const DetechXApp(showSplash: false));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField),
@@ -50,17 +66,17 @@ void main() {
         find.text('Clogged air filter or blower motor issue'),
         findsOneWidget,
       );
-      expect(find.text(r'$75 – $135'), findsOneWidget);
+      expect(find.text('TZS 35,000 – 65,000'), findsOneWidget);
       await tester.ensureVisible(find.text('Find a Technician'));
       await tester.tap(find.text('Find a Technician'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      expect(find.text('Mike Richardson'), findsOneWidget);
-      expect(find.text(r'Estimated $75 – $135'), findsOneWidget);
+      expect(find.text('Juma Msuya'), findsOneWidget);
+      expect(find.text('Estimated TZS 35,000 – 65,000'), findsOneWidget);
       await tester.tap(find.text('Call'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.text('Call Mike Richardson'), findsOneWidget);
+      expect(find.text('Call Juma Msuya'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

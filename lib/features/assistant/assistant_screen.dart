@@ -8,10 +8,16 @@ import '../../app/theme.dart';
 import '../../core/surfaces.dart';
 import '../service_data.dart';
 import '../tracking/tracking_screen.dart';
+import 'typing_reply.dart';
 
 class AssistantScreen extends StatefulWidget {
-  const AssistantScreen({super.key, required this.issue, this.attachment});
-  final String issue;
+  const AssistantScreen({
+    super.key,
+    required this.issue,
+    this.attachment,
+    this.neighborhood = '',
+  });
+  final String issue, neighborhood;
   final String? attachment;
   @override
   State<AssistantScreen> createState() => _AssistantScreenState();
@@ -30,7 +36,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
   @override
   void initState() {
     super.initState();
-    _start(widget.issue, widget.attachment);
+    if (widget.issue.isNotEmpty || widget.attachment != null) {
+      _start(
+        widget.issue.isEmpty ? 'Please review my attachment.' : widget.issue,
+        widget.attachment,
+      );
+    }
   }
 
   void _start(String issue, String? attachment) {
@@ -84,6 +95,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
       setState(() {
         _thinking = false;
         _result = _repository.diagnose(issue, answer);
+        _messages.add(
+          const ChatMessage(
+            'Asante! Here’s what a technician can check first, with an estimated cost.',
+          ),
+        );
       });
       _scrollToLatest();
     });
@@ -177,14 +193,23 @@ class _AssistantScreenState extends State<AssistantScreen> {
               bottomRight: Radius.circular(message.user ? 6 : 19),
             ),
           ),
-          child: Text(
-            message.text,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.4,
-              color: message.user ? Colors.white : AppColors.inkPrimary,
-            ),
-          ),
+          child: message.user
+              ? Text(
+                  message.text,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.4,
+                    color: Colors.white,
+                  ),
+                )
+              : TypingReply(
+                  message.text,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.4,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
         ),
       ),
     ),
@@ -212,8 +237,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 children: [
                   RoundAction(LucideIcons.plus, 'Attach media', () async {
                     final file = await pickAttachment(context);
-                    if (mounted && file != null)
+                    if (mounted && file != null) {
                       setState(() => _attachment = file.name);
+                    }
                   }),
                   Expanded(
                     child: TextField(
@@ -285,9 +311,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
                             'Tell me what’s happening at home to get started.',
                           ),
                         ),
-                      for (final (index, message) in _messages.indexed)
+                      for (final message in _messages)
                         Reveal(
-                          key: ValueKey(index),
+                          key: ObjectKey(message),
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: _bubble(message),
@@ -322,7 +348,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       if (_result case final result?)
                         Reveal(
                           key: ValueKey(result.issue),
-                          child: _DiagnosticCard(result),
+                          child: _DiagnosticCard(result, widget.neighborhood),
                         ),
                     ],
                   ),
@@ -403,7 +429,8 @@ class _ThinkingState extends State<_Thinking>
 }
 
 class _DiagnosticCard extends StatelessWidget {
-  const _DiagnosticCard(this.result);
+  const _DiagnosticCard(this.result, this.neighborhood);
+  final String neighborhood;
   final DiagnosticResult result;
   Widget _row(IconData icon, String caption, Widget text, {Widget? trailing}) =>
       GlassSurface(
@@ -476,7 +503,10 @@ class _DiagnosticCard extends StatelessWidget {
             curve: motionCurve,
             tween: Tween(begin: .78, end: 1),
             builder: (_, value, _) => Text(
-              '\$${(value * result.low).round()} – \$${(value * result.high).round()}',
+              formatEstimate(
+                (value * result.low).round(),
+                (value * result.high).round(),
+              ),
               style: AppTypography.label.merge(AppTypography.number),
             ),
           ),
@@ -499,7 +529,10 @@ class _DiagnosticCard extends StatelessWidget {
           width: double.infinity,
           child: PillButton('Find a Technician', () {
             FocusScope.of(context).unfocus();
-            openFlow(context, TrackingScreen(result: result));
+            openFlow(
+              context,
+              TrackingScreen(result: result, neighborhood: neighborhood),
+            );
           }, trailing: LucideIcons.arrowUpRight),
         ),
       ],
