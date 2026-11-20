@@ -187,17 +187,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       LatLng(position.latitude, position.longitude),
                       position.accuracy,
                     );
-                    if (suggested == null)
+                    if (suggested == null) {
                       hint =
                           'GPS haijapata mtaa wa huduma kwa uhakika. Tafadhali chagua mwenyewe.';
+                    }
                   });
                 } catch (error) {
-                  if (sheet.mounted)
+                  if (sheet.mounted) {
                     update(
                       () => hint = error is LocationProblem
                           ? error.message
                           : 'Hatukuweza kupata eneo. Chagua mtaa mwenyewe.',
                     );
+                  }
                 } finally {
                   if (sheet.mounted) update(() => locating = false);
                 }

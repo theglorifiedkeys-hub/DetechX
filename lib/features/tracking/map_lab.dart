@@ -62,7 +62,7 @@ class _DarStreetMapState extends State<DarStreetMap> {
       setState(() => _device = point);
       if (_ready) _controller.move(point, 15);
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -72,6 +72,7 @@ class _DarStreetMapState extends State<DarStreetMap> {
             ),
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -181,8 +182,9 @@ class _DarStreetMapState extends State<DarStreetMap> {
                 Icons.center_focus_strong,
                 'Rudi kwenye ramani ya kazi',
                 () {
-                  if (_ready)
+                  if (_ready) {
                     _controller.move(_destination, widget.tracking ? 12 : 13);
+                  }
                 },
               ),
             ],

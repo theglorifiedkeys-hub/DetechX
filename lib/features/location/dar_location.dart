@@ -17,8 +17,11 @@ const darAreas = <String, LatLng>{
 };
 
 String? suggestDarArea(LatLng point, double accuracyMeters) {
-  if (!accuracyMeters.isFinite || accuracyMeters <= 0 || accuracyMeters > 2500)
+  if (!accuracyMeters.isFinite ||
+      accuracyMeters <= 0 ||
+      accuracyMeters > 2500) {
     return null;
+  }
   String? closest;
   var distance = 5000.0;
   for (final area in darAreas.entries) {
@@ -48,8 +51,9 @@ Future<Position> readDevicePosition() async {
     );
   }
   var permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied)
+  if (permission == LocationPermission.denied) {
     permission = await Geolocator.requestPermission();
+  }
   if (permission == LocationPermission.denied ||
       permission == LocationPermission.deniedForever) {
     throw const LocationProblem(
