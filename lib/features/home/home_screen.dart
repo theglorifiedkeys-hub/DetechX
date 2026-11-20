@@ -69,12 +69,13 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await action();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not save your settings. Please try again.'),
           ),
         );
+      }
     }
   }
 
@@ -142,8 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
       ],
     );
-    if (mounted && address != null)
+    if (mounted && address != null) {
       await _save(() => _settings.saveNeighborhood(address));
+    }
   }
 
   Future<void> _attach() async {

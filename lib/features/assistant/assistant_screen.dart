@@ -333,7 +333,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       if (_result case final result?)
                         Reveal(
                           key: ValueKey(result.issue),
-                          child: _DiagnosticCard(result),
+                          child: _DiagnosticCard(result, widget.neighborhood),
                         ),
                     ],
                   ),
@@ -414,7 +414,8 @@ class _ThinkingState extends State<_Thinking>
 }
 
 class _DiagnosticCard extends StatelessWidget {
-  const _DiagnosticCard(this.result);
+  const _DiagnosticCard(this.result, this.neighborhood);
+  final String neighborhood;
   final DiagnosticResult result;
   Widget _row(IconData icon, String caption, Widget text, {Widget? trailing}) =>
       GlassSurface(
@@ -515,7 +516,7 @@ class _DiagnosticCard extends StatelessWidget {
             FocusScope.of(context).unfocus();
             openFlow(
               context,
-              TrackingScreen(result: result, neighborhood: widget.neighborhood),
+              TrackingScreen(result: result, neighborhood: neighborhood),
             );
           }, trailing: LucideIcons.arrowUpRight),
         ),
