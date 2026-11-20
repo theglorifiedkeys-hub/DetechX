@@ -4,3 +4,6 @@ build/
 .idea/
 *.iml
 android/local.properties
+node_modules/
+website/dist/
+website/.vercel/
