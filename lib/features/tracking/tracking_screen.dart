@@ -223,6 +223,14 @@ class _TrackingScreenState extends State<TrackingScreen>
   void _message() =>
       showPanel<void>(context, 'Message ${_tech.name}', [const _DemoMessage()]);
   void _options() => showPanel<void>(context, 'Trip options', [
+    ListTile(
+      leading: const Icon(Icons.map_outlined),
+      title: const Text('Compare Dar maps'),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.pushNamed(context, '/map');
+      },
+    ),
     const ListTile(
       leading: Icon(LucideIcons.radio),
       title: Text('Simulated dispatch'),

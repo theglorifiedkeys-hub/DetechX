@@ -35,3 +35,7 @@ The widget tests cover issue handoff, keyboard insets, estimate propagation, and
 ### Test a service through payment
 
 On tracking, confirm the fundi has arrived, start work, confirm completion, review the TZS test invoice, and confirm a test payment. A local receipt appears; no mobile-money prompt or charge is sent. The visit and receipt are session-only. See [the Snippe integration plan](docs/snippe-payments.md) for merchant onboarding and the backend steps needed to enable real payments.
+
+### Map lab and operations website
+
+Open **Try the Dar map demo** to compare an offline illustrated map and interactive street tiles. **My location** is optional and stays on-device. Open **Admin demo** to search sample jobs, assign a fundi and walk through test payment status. On Flutter web, the routes are `/#/map` and `/#/admin`; admin demo data resets when you leave the page. See the [Firebase handoff](docs/firebase-roadmap.md) for local permissions, hosting and the backend plan.

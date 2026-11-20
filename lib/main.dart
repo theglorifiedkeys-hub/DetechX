@@ -4,6 +4,8 @@ import 'app/theme.dart';
 import 'core/lucide_icons.dart';
 import 'core/surfaces.dart';
 import 'features/home/home_screen.dart';
+import 'features/admin/admin_screen.dart';
+import 'features/tracking/map_lab.dart';
 
 void main() => runApp(const DetechXApp());
 
@@ -49,13 +51,24 @@ class _DetechXAppState extends State<DetechXApp> {
       title: 'DetechX',
       debugShowCheckedModeBanner: false,
       theme: appTheme,
+      routes: {
+        '/admin': (_) => const AdminScreen(),
+        '/map': (_) => const MapLab(),
+      },
       home: Builder(
         builder: (context) => AnimatedSwitcher(
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : const Duration(milliseconds: 420),
           switchInCurve: motionCurve,
-          child: _ready ? HomeScreen(settings: _settings) : const _Splash(),
+          child: _ready
+              ? Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 540),
+                    child: HomeScreen(settings: _settings),
+                  ),
+                )
+              : const _Splash(),
         ),
       ),
       builder: (context, child) {
@@ -69,7 +82,7 @@ class _DetechXAppState extends State<DetechXApp> {
             color: const Color(0xfff1e6df),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 540),
+                constraints: const BoxConstraints(maxWidth: 1220),
                 child: child!,
               ),
             ),
