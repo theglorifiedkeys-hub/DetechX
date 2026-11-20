@@ -1,7 +1,7 @@
 name: detechx
 description: Home service diagnostics and dispatch demo.
 publish_to: none
-version: 1.0.0+1
+version: 1.0.1+2
 environment:
   sdk: '>=3.7.0 <4.0.0'
 dependencies:
@@ -22,6 +22,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/ac.jpg
+    - assets/launcher.png
     - assets/mike.jpg
   fonts:
     - family: Lucide

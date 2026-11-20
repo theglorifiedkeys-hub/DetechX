@@ -1,299 +1,242 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme.dart';
 import '../../core/surfaces.dart';
-import 'dotted_map.dart';
+import '../location/dar_location.dart';
 
-class MapLab extends StatefulWidget {
-  const MapLab({super.key});
-
+class DarStreetMap extends StatefulWidget {
+  const DarStreetMap({
+    super.key,
+    this.trip,
+    this.neighborhood = '',
+    this.tracking = false,
+  });
+  final Animation<double>? trip;
+  final String neighborhood;
+  final bool tracking;
   @override
-  State<MapLab> createState() => _MapLabState();
+  State<DarStreetMap> createState() => _DarStreetMapState();
 }
 
-class _MapLabState extends State<MapLab> with SingleTickerProviderStateMixin {
-  static const _home = LatLng(-6.7706, 39.2512);
-  static const _route = [
-    LatLng(-6.7902, 39.2259),
-    LatLng(-6.7869, 39.2323),
-    LatLng(-6.7819, 39.2364),
-    LatLng(-6.7808, 39.2429),
-    LatLng(-6.7751, 39.2458),
-    _home,
-  ];
-  static const _center = LatLng(-6.780, 39.239);
-  late final _trip = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 22),
-  );
-  final _map = MapController();
-  bool _street = false, _locating = false, _tileError = false;
+class _DarStreetMapState extends State<DarStreetMap> {
+  final _controller = MapController();
+  bool _locating = false, _tileError = false, _ready = false;
+  int _revision = 0;
   LatLng? _device;
-  String? _locationHint;
+  LatLng get _destination =>
+      darAreas[widget.neighborhood] ?? darAreas['Mikocheni']!;
+  List<LatLng> get _line {
+    final start = widget.neighborhood == 'Sinza'
+        ? darAreas['Ubungo']!
+        : darAreas['Sinza']!;
+    final end = _destination;
+    return [
+      start,
+      LatLng(
+        start.latitude * .63 + end.latitude * .37,
+        start.longitude * .8 + end.longitude * .2,
+      ),
+      LatLng(
+        start.latitude * .30 + end.latitude * .70,
+        start.longitude * .34 + end.longitude * .66,
+      ),
+      end,
+    ];
+  }
 
   @override
   void dispose() {
-    _trip.dispose();
-    _map.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _replay() {
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _trip.value = 1;
-    } else {
-      _trip.forward(from: 0);
-    }
-  }
-
   Future<void> _locate() async {
-    if (_locating) return;
-    setState(() {
-      _locating = true;
-      _locationHint = null;
-    });
+    if (_locating || !_ready) return;
+    setState(() => _locating = true);
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        throw StateError('Turn on location services and try again.');
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        throw StateError(
-          'Allow location in your device or browser settings to see your pin.',
-        );
-      }
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 12),
-        ),
-      );
+      final position = await readDevicePosition();
       if (!mounted) return;
       final point = LatLng(position.latitude, position.longitude);
       setState(() => _device = point);
-      if (_street) _map.move(point, 14);
+      if (_ready) _controller.move(point, 15);
     } catch (error) {
-      if (mounted) {
-        setState(
-          () => _locationHint = error is StateError
-              ? error.message
-              : 'Location couldn’t be found. On web, use HTTPS and allow location access.',
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is LocationProblem
+                  ? error.message
+                  : 'Hatukuweza kupata eneo. Jaribu tena ukiwa na GPS na intaneti.',
+            ),
+          ),
         );
-      }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
   }
 
-  LatLng _van(double fraction) {
-    final progress = fraction * (_route.length - 1);
-    final index = progress.floor().clamp(0, _route.length - 2).toInt();
-    final t = progress - index;
-    final a = _route[index], b = _route[index + 1];
+  LatLng _point(List<LatLng> line) {
+    final n = (widget.trip?.value ?? 0) * (line.length - 1);
+    final index = n.floor().clamp(0, line.length - 2).toInt();
+    final t = n - index;
+    final a = line[index], b = line[index + 1];
     return LatLng(
       a.latitude + (b.latitude - a.latitude) * t,
       a.longitude + (b.longitude - a.longitude) * t,
     );
   }
 
-  Widget _pin(IconData icon, Color color) => CircleAvatar(
-    backgroundColor: color,
-    child: Icon(icon, color: Colors.white, size: 18),
-  );
-
-  Widget _streetMap() => FlutterMap(
-    mapController: _map,
-    options: const MapOptions(
-      initialCenter: _center,
-      initialZoom: 12.8,
-      minZoom: 4,
-      maxZoom: 19,
+  Marker _pin(LatLng point, IconData icon, Color color) => Marker(
+    point: point,
+    width: 38,
+    height: 38,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Icon(icon, size: 19, color: Colors.white),
     ),
-    children: [
-      TileLayer(
-        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        userAgentPackageName: 'com.detechx.detechx',
-        maxNativeZoom: 19,
-        errorTileCallback: (_, _, _) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && _street && !_tileError) {
-              setState(() => _tileError = true);
-            }
-          });
-        },
-      ),
-      PolylineLayer(
-        polylines: [
-          Polyline(
-            points: _route,
-            color: AppColors.auraCoralDeep,
-            strokeWidth: 4,
-            borderColor: Colors.white,
-            borderStrokeWidth: 1,
-          ),
-        ],
-      ),
-      AnimatedBuilder(
-        animation: _trip,
-        builder: (_, _) => MarkerLayer(
-          markers: [
-            Marker(
-              point: _home,
-              width: 34,
-              height: 34,
-              child: _pin(Icons.home_rounded, AppColors.auraCoralDeep),
-            ),
-            Marker(
-              point: _van(_trip.value),
-              width: 34,
-              height: 34,
-              child: _pin(Icons.local_shipping_rounded, AppColors.inkPrimary),
-            ),
-            if (_device case final point?)
-              Marker(
-                point: point,
-                width: 30,
-                height: 30,
-                child: _pin(Icons.my_location, Colors.blue.shade700),
-              ),
-          ],
-        ),
-      ),
-    ],
   );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Dar es Salaam map lab')),
-    body: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(15, 6, 15, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext context) {
+    final line = _line;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        FlutterMap(
+          mapController: _controller,
+          options: MapOptions(
+            initialCenter: _destination,
+            initialZoom: widget.tracking ? 12 : 13,
+            minZoom: 5,
+            maxZoom: 18,
+            backgroundColor: const Color(0xffe6ecea),
+            onMapReady: () => _ready = true,
+          ),
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 7,
-              children: [
-                ChoiceChip(
-                  label: const Text('Illustrated'),
-                  selected: !_street,
-                  onSelected: (_) => setState(() {
-                    _street = false;
-                    _locationHint = null;
-                  }),
-                ),
-                ChoiceChip(
-                  label: const Text('Street map'),
-                  selected: _street,
-                  onSelected: (_) => setState(() {
-                    _street = true;
-                    _tileError = false;
-                  }),
-                ),
-              ],
+            TileLayer(
+              key: ValueKey(_revision),
+              urlTemplate:
+                  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+              userAgentPackageName: 'com.detechx.detechx',
+              maxNativeZoom: 18,
+              errorTileCallback: (_, _, _) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && !_tileError) setState(() => _tileError = true);
+                });
+              },
             ),
-            const SizedBox(height: 7),
-            const Text(
-              'Sinza → Mikocheni · sample route, not live navigation',
-              style: AppTypography.caption,
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (_street)
-                      _streetMap()
-                    else
-                      Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          const AmbientCoralBackdrop(),
-                          DottedVectorMapCanvas(
-                            route: const AlwaysStoppedAnimation(1.0),
-                            trip: _trip,
-                          ),
-                        ],
-                      ),
-                    if (_street)
-                      Positioned(
-                        bottom: 6,
-                        right: 6,
-                        child: Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          child: InkWell(
-                            onTap: () => launchUrl(
-                              Uri.https('www.openstreetmap.org', '/copyright'),
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.all(6),
-                              child: Text(
-                                '© OpenStreetMap contributors',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            if (_street && _tileError)
-              const Padding(
-                padding: EdgeInsets.only(top: 5),
-                child: Text(
-                  'Some street tiles are unavailable. Try Illustrated for the offline demo.',
-                  style: AppTypography.caption,
-                ),
-              ),
-            if (_locationHint case final hint?)
-              Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Text(hint, style: AppTypography.caption),
-              ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 7,
-              children: [
-                PillButton(
-                  'Replay van',
-                  _replay,
-                  icon: Icons.play_arrow_rounded,
-                  height: 42,
-                ),
-                if (_street) ...[
-                  PillButton(
-                    _locating ? 'Locating…' : 'My location',
-                    _locate,
-                    icon: Icons.my_location,
-                    dark: false,
-                    height: 42,
-                  ),
-                  IconButton(
-                    tooltip: 'Center sample route',
-                    onPressed: () => _map.move(_center, 12.8),
-                    icon: const Icon(Icons.center_focus_strong),
+            if (widget.trip != null)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: line,
+                    strokeWidth: 4,
+                    borderStrokeWidth: 2,
+                    borderColor: Colors.white,
+                    color: AppColors.auraCoralDeep,
                   ),
                 ],
-              ],
+              ),
+            AnimatedBuilder(
+              animation: widget.trip ?? const AlwaysStoppedAnimation(0.0),
+              builder: (_, _) => MarkerLayer(
+                markers: [
+                  _pin(
+                    _destination,
+                    Icons.home_rounded,
+                    AppColors.auraCoralDeep,
+                  ),
+                  if (widget.trip != null)
+                    _pin(
+                      _point(line),
+                      Icons.local_shipping_rounded,
+                      AppColors.inkPrimary,
+                    ),
+                  if (_device case final point?)
+                    _pin(point, Icons.my_location, Colors.blue.shade700),
+                ],
+              ),
             ),
           ],
         ),
-      ),
-    ),
+        Positioned(
+          right: 10,
+          top: widget.tracking ? 112 : 10,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              RoundAction(
+                Icons.my_location,
+                _locating ? 'Inatafuta eneo' : 'Eneo langu',
+                _locate,
+              ),
+              const SizedBox(height: 5),
+              RoundAction(
+                Icons.center_focus_strong,
+                'Rudi kwenye ramani ya kazi',
+                () {
+                  if (_ready)
+                    _controller.move(_destination, widget.tracking ? 12 : 13);
+                },
+              ),
+            ],
+          ),
+        ),
+        if (_tileError)
+          Positioned(
+            left: 10,
+            top: widget.tracking ? 112 : 10,
+            child: PillButton(
+              'Pakia ramani tena',
+              () => setState(() {
+                _tileError = false;
+                _revision++;
+              }),
+              icon: Icons.refresh,
+              dark: false,
+              height: 39,
+            ),
+          ),
+        Positioned(
+          left: 8,
+          top: widget.tracking ? 94 : null,
+          bottom: widget.tracking ? null : 8,
+          child: Material(
+            color: const Color(0xeeffffff),
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              onTap: () => launchUrl(
+                Uri.https('www.arcgis.com', '/home/item.html', {
+                  'id': '6e03e8c26aad4b9c92a87c1063ddb0e3',
+                }),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(5),
+                child: Text(
+                  'Basemap © Esri & contributors',
+                  style: TextStyle(fontSize: 10, color: AppColors.inkPrimary),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class MapLab extends StatelessWidget {
+  const MapLab({super.key, this.neighborhood = ''});
+  final String neighborhood;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Ramani ya Dar es Salaam')),
+    body: SafeArea(top: false, child: DarStreetMap(neighborhood: neighborhood)),
   );
 }

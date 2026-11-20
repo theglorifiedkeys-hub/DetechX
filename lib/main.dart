@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'app/preferences.dart';
 import 'app/theme.dart';
-import 'core/lucide_icons.dart';
 import 'core/surfaces.dart';
 import 'features/home/home_screen.dart';
-import 'features/admin/admin_screen.dart';
 import 'features/tracking/map_lab.dart';
 
 void main() => runApp(const DetechXApp());
@@ -51,10 +49,7 @@ class _DetechXAppState extends State<DetechXApp> {
       title: 'DetechX',
       debugShowCheckedModeBanner: false,
       theme: appTheme,
-      routes: {
-        '/admin': (_) => const AdminScreen(),
-        '/map': (_) => const MapLab(),
-      },
+      routes: {'/map': (_) => const MapLab()},
       home: Builder(
         builder: (context) => AnimatedSwitcher(
           duration: MediaQuery.disableAnimationsOf(context)
@@ -108,10 +103,13 @@ class _Splash extends StatelessWidget {
                 const GlassSurface(
                   radius: 28,
                   padding: EdgeInsets.all(22),
-                  child: Icon(
-                    LucideIcons.sparkles,
-                    size: 43,
-                    color: AppColors.auraCoralDeep,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
+                    child: Image(
+                      image: AssetImage('assets/launcher.png'),
+                      width: 62,
+                      height: 62,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 19),

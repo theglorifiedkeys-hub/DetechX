@@ -1,5 +1,11 @@
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
+import '../admin/admin_screen.dart';
+import '../admin/demo_access.dart';
+import '../admin/dispatch_store.dart';
+import '../location/dar_location.dart';
+import '../tracking/map_lab.dart';
 import '../../app/preferences.dart';
 import 'profile_editor.dart';
 import 'package:flutter/material.dart';
@@ -82,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _editProfile() =>
       showPanel<void>(context, 'Edit profile', [ProfileEditor(_settings)]);
 
-  void _openSettings() => showPanel<void>(context, 'Settings', [
+  void _openSettings() => showPanel<void>(context, 'Mipangilio', [
     ListenableBuilder(
       listenable: _settings,
       builder: (_, _) => SwitchListTile(
@@ -105,10 +111,34 @@ class _HomeScreenState extends State<HomeScreen> {
   ]);
   XFile? _attachment;
   int _tab = 0;
+  DemoRole? _role;
+  final _dispatch = DemoDispatchStore();
+
+  Future<void> _login() async {
+    final role = await chooseDemoRole(context);
+    if (!mounted || role == null) return;
+    setState(() => _role = role);
+    if (role != DemoRole.customer) _openWorkspace();
+  }
+
+  void _openWorkspace() {
+    final role = _role;
+    if (role == null || role == DemoRole.customer) return;
+    openFlow(
+      context,
+      AdminScreen(
+        store: _dispatch,
+        technician: role == DemoRole.technician
+            ? DemoDispatchStore.technicians.first
+            : null,
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _clock?.cancel();
+    _dispatch.dispose();
     _settings.removeListener(_refresh);
     _prompt.dispose();
     super.dispose();
@@ -128,21 +158,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _chooseAddress() async {
-    final address = await showPanel<String>(
-      context,
-      'Choose a Dar es Salaam neighborhood',
-      [
-        for (final address in MockServiceRepository.addresses)
-          ListTile(
-            leading: const Icon(LucideIcons.mapPin),
-            title: Text(address),
-            trailing: address == _address
-                ? const Icon(LucideIcons.check)
-                : null,
-            onTap: () => Navigator.pop(context, address),
-          ),
-      ],
-    );
+    var locating = false;
+    String? hint, suggested;
+    final address = await showPanel<String>(context, 'Chagua eneo la huduma', [
+      StatefulBuilder(
+        builder: (sheet, update) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'GPS inapendekeza mtaa wa karibu. Thibitisha au chagua mwenyewe; anwani kamili haijahifadhiwa.',
+              style: AppTypography.caption,
+            ),
+            const SizedBox(height: 8),
+            PillButton(
+              locating ? 'Inatafuta eneo…' : 'Tambua eneo langu',
+              () async {
+                if (locating) return;
+                update(() {
+                  locating = true;
+                  hint = null;
+                  suggested = null;
+                });
+                try {
+                  final position = await readDevicePosition();
+                  if (!sheet.mounted) return;
+                  update(() {
+                    suggested = suggestDarArea(
+                      LatLng(position.latitude, position.longitude),
+                      position.accuracy,
+                    );
+                    if (suggested == null)
+                      hint =
+                          'GPS haijapata mtaa wa huduma kwa uhakika. Tafadhali chagua mwenyewe.';
+                  });
+                } catch (error) {
+                  if (sheet.mounted)
+                    update(
+                      () => hint = error is LocationProblem
+                          ? error.message
+                          : 'Hatukuweza kupata eneo. Chagua mtaa mwenyewe.',
+                    );
+                } finally {
+                  if (sheet.mounted) update(() => locating = false);
+                }
+              },
+              icon: Icons.my_location,
+              height: 42,
+            ),
+            if (hint case final message?)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(message, style: AppTypography.caption),
+              ),
+            if (suggested case final area?)
+              ListTile(
+                title: Text('Pendekezo: $area'),
+                subtitle: const Text('Gusa kuthibitisha eneo'),
+                trailing: const Icon(Icons.check),
+                onTap: () => Navigator.pop(sheet, area),
+              ),
+          ],
+        ),
+      ),
+      for (final area in darAreas.keys)
+        ListTile(
+          leading: const Icon(LucideIcons.mapPin),
+          title: Text(area),
+          trailing: area == _address ? const Icon(LucideIcons.check) : null,
+          onTap: () => Navigator.pop(context, area),
+        ),
+    ]);
     if (mounted && address != null) {
       await _save(() => _settings.saveNeighborhood(address));
     }
@@ -183,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('No upcoming bookings', style: AppTypography.label),
+              Text('Hakuna miadi inayokuja', style: AppTypography.label),
               SizedBox(height: 3),
               Text(
                 'Start with a service to explore your options.',
@@ -357,34 +442,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       _services(),
       const SizedBox(height: 14),
-      GlassSurface(
-        radius: 22,
-        child: Column(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.map_outlined),
-              title: const Text('Try the Dar map demo'),
-              subtitle: const Text('Compare illustrated and street maps'),
-              trailing: const Icon(LucideIcons.chevronRight),
-              onTap: () => Navigator.pushNamed(context, '/map'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.dashboard_outlined),
-              title: const Text('Admin demo'),
-              subtitle: const Text('Assign a fundi and manage sample jobs'),
-              trailing: const Icon(LucideIcons.chevronRight),
-              onTap: () => Navigator.pushNamed(context, '/admin'),
-            ),
-          ],
-        ),
-      ),
       const SizedBox(height: 20),
       Reveal(
         delay: 180,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _section('Upcoming service'),
+            _section('Huduma zinazokuja'),
             const SizedBox(height: 9),
             _bookingsEmpty(),
           ],
@@ -414,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _bookingsEmpty(),
     ],
     _ => [
-      const Text('Your profile', style: AppTypography.title),
+      const Text('Wasifu wako', style: AppTypography.title),
       const SizedBox(height: 12),
       GlassSurface(
         child: Column(
@@ -440,8 +504,39 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: _chooseAddress,
             ),
             ListTile(
+              leading: const Icon(Icons.login),
+              title: Text(
+                _role == null
+                    ? 'Ingia'
+                    : 'Akaunti ya majaribio · ${_role!.label}',
+              ),
+              subtitle: const Text('Mteja, fundi au msimamizi'),
+              trailing: const Icon(LucideIcons.chevronRight),
+              onTap: _login,
+            ),
+            if (_role == DemoRole.technician || _role == DemoRole.dispatcher)
+              ListTile(
+                leading: const Icon(Icons.dashboard_outlined),
+                title: const Text('Fungua eneo la kazi'),
+                onTap: _openWorkspace,
+              ),
+            if (_role != null)
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Toka'),
+                onTap: () => setState(() => _role = null),
+              ),
+            ListTile(
+              leading: const Icon(Icons.map_outlined),
+              title: const Text('Ramani ya Dar es Salaam'),
+              onTap: () => openFlow(
+                context,
+                MapLab(neighborhood: _settings.neighborhood),
+              ),
+            ),
+            ListTile(
               leading: const Icon(LucideIcons.wrench),
-              title: const Text('Settings'),
+              title: const Text('Mipangilio'),
               subtitle: const Text('Motion, region and app information'),
               trailing: const Icon(LucideIcons.chevronRight),
               onTap: _openSettings,
@@ -454,10 +549,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _dock() {
     const tabs = [
-      (LucideIcons.house, 'Home'),
-      (LucideIcons.wrench, 'Services'),
-      (LucideIcons.calendarDays, 'Bookings'),
-      (LucideIcons.userRound, 'Profile'),
+      (LucideIcons.house, 'Mwanzo'),
+      (LucideIcons.wrench, 'Huduma'),
+      (LucideIcons.calendarDays, 'Miadi'),
+      (LucideIcons.userRound, 'Wasifu'),
     ];
     return Row(
       children: [
@@ -575,83 +670,89 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Stack(
-      children: [
-        const AmbientCoralBackdrop(center: Alignment(.5, -.02)),
-        SafeArea(
-          child: CustomScrollView(
-            key: PageStorageKey(_tab),
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 94),
-                sliver: SliverList.list(
-                  children: [
-                    Reveal(
-                      child: Row(
-                        children: [
-                          RoundAction(
-                            LucideIcons.mapPin,
-                            'Change location',
-                            _chooseAddress,
-                            size: 42,
-                          ),
-                          const SizedBox(width: 6),
-                          PillButton(
-                            _address,
-                            _chooseAddress,
-                            dark: false,
-                            height: 42,
-                            trailing: LucideIcons.chevronDown,
-                          ),
-                          const Spacer(),
-                          SpringScaleTap(
-                            label: 'Open profile',
-                            onTap: () => setState(() => _tab = 3),
-                            child: Container(
-                              width: 42,
+  Widget build(BuildContext context) => PopScope<Object?>(
+    canPop: _tab == 0,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop && _tab != 0) setState(() => _tab = 0);
+    },
+    child: Scaffold(
+      body: Stack(
+        children: [
+          const AmbientCoralBackdrop(center: Alignment(.5, -.02)),
+          SafeArea(
+            child: CustomScrollView(
+              key: PageStorageKey(_tab),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 94),
+                  sliver: SliverList.list(
+                    children: [
+                      Reveal(
+                        child: Row(
+                          children: [
+                            RoundAction(
+                              LucideIcons.mapPin,
+                              'Change location',
+                              _chooseAddress,
+                              size: 42,
+                            ),
+                            const SizedBox(width: 6),
+                            PillButton(
+                              _address,
+                              _chooseAddress,
+                              dark: false,
                               height: 42,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xffeac3af),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
+                              trailing: LucideIcons.chevronDown,
+                            ),
+                            const Spacer(),
+                            SpringScaleTap(
+                              label: 'Open profile',
+                              onTap: () => setState(() => _tab = 3),
+                              child: Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xffeac3af),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                 ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                _initial,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  _initial,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 19),
-                    ..._page(),
-                  ],
+                      const SizedBox(height: 19),
+                      ..._page(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        if (MediaQuery.viewInsetsOf(context).bottom == 0)
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 13,
-            child: SafeArea(
-              top: false,
-              child: Reveal(delay: 220, child: _dock()),
+              ],
             ),
           ),
-      ],
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 13,
+              child: SafeArea(
+                top: false,
+                child: Reveal(delay: 220, child: _dock()),
+              ),
+            ),
+        ],
+      ),
     ),
   );
 }

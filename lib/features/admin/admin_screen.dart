@@ -7,21 +7,17 @@ import '../tracking/map_lab.dart';
 import 'dispatch_store.dart';
 
 class AdminScreen extends StatefulWidget {
-  const AdminScreen({super.key});
+  const AdminScreen({super.key, required this.store, this.technician});
+  final DemoDispatchStore store;
+  final String? technician;
   @override
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  final _store = DemoDispatchStore();
+  DemoDispatchStore get _store => widget.store;
   JobStage? _filter;
   String _query = '';
-
-  @override
-  void dispose() {
-    _store.dispose();
-    super.dispose();
-  }
 
   Future<void> _assign(DispatchJob job) async {
     final tech = await showPanel<String>(context, 'Assign ${job.id}', [
@@ -111,7 +107,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   'Test payment recorded',
                   style: AppTypography.caption,
                 )
-              else
+              else if (widget.technician == null ||
+                  job.stage != JobStage.complete)
                 PillButton(
                   action,
                   () {
@@ -130,10 +127,14 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('DetechX Operations'),
+      title: Text(
+        widget.technician == null
+            ? 'Usimamizi · DetechX'
+            : 'Kazi za ${widget.technician}',
+      ),
       actions: [
         IconButton(
-          tooltip: 'Compare maps',
+          tooltip: 'Ramani ya Dar',
           icon: const Icon(Icons.map_outlined),
           onPressed: () => openFlow(context, const MapLab()),
         ),
@@ -147,7 +148,13 @@ class _AdminScreenState extends State<AdminScreen> {
           child: ListenableBuilder(
             listenable: _store,
             builder: (context, _) {
-              final jobs = _store.jobs;
+              final jobs = _store.jobs
+                  .where(
+                    (job) =>
+                        widget.technician == null ||
+                        job.technician == widget.technician,
+                  )
+                  .toList();
               final filtered = jobs.where(
                 (job) =>
                     (_filter == null || job.stage == _filter) &&
@@ -180,7 +187,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
                         const SizedBox(height: 5),
                         const Text(
-                          'Sample jobs only. Changes reset when you leave this dashboard.',
+                          'Kazi za majaribio tu. Mabadiliko hupotea ukifunga programu.',
                           style: AppTypography.caption,
                         ),
                         const SizedBox(height: 18),

@@ -1,12 +1,11 @@
 # Demo and Firebase handoff
 
-The same Flutter project has a customer website, a map lab (`/#/map`) and a responsive operations preview (`/#/admin`). From Home, choose either demo card. The admin workspace is deliberately public **only for seeded, in-memory demo rows**. It is not connected to customer bookings or payments.
+The Flutter project includes a Dar map (`/#/map`) and a responsive staff workspace. From the app, open Wasifu → Ingia, then select Fundi or Msimamizi. This is a local role preview with seeded, in-memory rows, not authentication or live customer data.
 
 ## Map decision
 
-- **Illustrated:** included and usable without network or location permission. Good for presentation or when tiles are unavailable; cannot show real streets or your GPS position.
-- **Street map:** `flutter_map` renders OpenStreetMap tiles, pan/zoom, sample markers and a moving van. The demo polyline is pre-drawn, not a calculated driving route. Geolocator adds a separate device pin only when you tap **My location** and grant permission. The point is not persisted or uploaded. Web hosting needs HTTPS (or localhost for development).
-- Use the street map for a real pilot and keep the illustrated view for previews. Before production select a tile service with suitable terms and capacity, respect attribution, and integrate a routing/ETA service if needed. Rendering, GPS and directions are separate responsibilities.
+- The Esri topographic basemap replaces the illustrated and OpenStreetMap tile views. `flutter_map` renders tiles; Geolocator provides optional GPS. The route is a simulation. Select a properly licensed tile service and production routing/ETA provider before a real pilot.
+- GPS is requested only after a tap. The app saves the confirmed service neighborhood, not latitude and longitude. Moving the map to the device location may request tiles near that location from Esri. Web hosting requires HTTPS (or localhost for development).
 
 ## Backend plan
 
