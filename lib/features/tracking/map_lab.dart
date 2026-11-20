@@ -60,8 +60,9 @@ class _MapLabState extends State<MapLab> with SingleTickerProviderStateMixin {
         throw StateError('Turn on location services and try again.');
       }
       var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied)
+      if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+      }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         throw StateError(
@@ -77,14 +78,15 @@ class _MapLabState extends State<MapLab> with SingleTickerProviderStateMixin {
       if (!mounted) return;
       final point = LatLng(position.latitude, position.longitude);
       setState(() => _device = point);
-      _map.move(point, 14);
+      if (_street) _map.move(point, 14);
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _locationHint = error is StateError
               ? error.message
               : 'Location couldn’t be found. On web, use HTTPS and allow location access.',
         );
+      }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -121,8 +123,9 @@ class _MapLabState extends State<MapLab> with SingleTickerProviderStateMixin {
         maxNativeZoom: 19,
         errorTileCallback: (_, _, _) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && _street && !_tileError)
+            if (mounted && _street && !_tileError) {
               setState(() => _tileError = true);
+            }
           });
         },
       ),
