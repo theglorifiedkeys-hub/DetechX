@@ -10,6 +10,51 @@ jobs:
           flutter-version: '3.29.3'
           cache: true
       - run: flutter pub get
-      - run: flutter analyze
+      - name: Analyze Flutter code
+        run: |
+          set +e
+          flutter analyze 2>&1 | tee "$RUNNER_TEMP/flutter-analyze.log"
+          status=${PIPESTATUS[0]}
+          if [[ $status != 0 ]]; then
+            while IFS= read -r line; do
+              line=${line//%/%25}
+              echo "::error::$line"
+            done < <(grep ' • ' "$RUNNER_TEMP/flutter-analyze.log" | head -30)
+          fi
+          exit "$status"
       - run: flutter test
       - run: flutter build web
+  android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          cache: true
+      - name: Generate Android runner
+        run: |
+          flutter create --no-pub --platforms=android --org com.detechx --project-name detechx "$RUNNER_TEMP/detechx"
+          cp -R "$RUNNER_TEMP/detechx/android" android
+          sed -i 's/android:label="detechx"/android:label="DetechX"/' android/app/src/main/AndroidManifest.xml
+      - name: Build installable APK
+        run: |
+          set +e
+          flutter build apk --debug 2>&1 | tee "$RUNNER_TEMP/apk-build.log"
+          status=${PIPESTATUS[0]}
+          if [[ $status != 0 ]]; then
+            while IFS= read -r line; do
+              line=${line//%/%25}
+              echo "::error::$line"
+            done < <(grep -Ei 'error:|failed|exception|requires|what went wrong' "$RUNNER_TEMP/apk-build.log" | head -30)
+          fi
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DetechX-Android-APK
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
