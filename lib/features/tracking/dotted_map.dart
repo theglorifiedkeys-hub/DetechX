@@ -57,9 +57,9 @@ class _CityTexture extends CustomPainter {
       }
     }
     for (final (text, x, y) in [
-      ('DOWNTOWN', .09, .44),
-      ('FORT GREENE', .51, .27),
-      ('BROOKLYN', .55, .66),
+      ('KINONDONI', .09, .44),
+      ('MIKOCHENI', .51, .27),
+      ('DAR ES SALAAM', .55, .66),
     ]) {
       final label = TextPainter(
         textDirection: TextDirection.ltr,

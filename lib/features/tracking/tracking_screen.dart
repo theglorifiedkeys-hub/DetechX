@@ -7,8 +7,13 @@ import '../service_data.dart';
 import 'dotted_map.dart';
 
 class TrackingScreen extends StatefulWidget {
-  const TrackingScreen({super.key, required this.result});
+  const TrackingScreen({
+    super.key,
+    required this.result,
+    this.neighborhood = '',
+  });
   final DiagnosticResult result;
+  final String neighborhood;
   @override
   State<TrackingScreen> createState() => _TrackingScreenState();
 }
@@ -297,9 +302,9 @@ class _TrackingScreenState extends State<TrackingScreen>
                       blur: true,
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'LIVE ROUTE  /  DEMO DISPATCH',
-                      style: TextStyle(
+                    Text(
+                      '${widget.neighborhood.isEmpty ? 'DAR ES SALAAM' : widget.neighborhood.toUpperCase()}  /  SIMULATED ROUTE',
+                      style: const TextStyle(
                         fontSize: 10,
                         letterSpacing: 1.5,
                         fontWeight: FontWeight.w700,

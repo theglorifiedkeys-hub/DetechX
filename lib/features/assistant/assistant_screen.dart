@@ -10,8 +10,13 @@ import '../service_data.dart';
 import '../tracking/tracking_screen.dart';
 
 class AssistantScreen extends StatefulWidget {
-  const AssistantScreen({super.key, required this.issue, this.attachment});
-  final String issue;
+  const AssistantScreen({
+    super.key,
+    required this.issue,
+    this.attachment,
+    this.neighborhood = '',
+  });
+  final String issue, neighborhood;
   final String? attachment;
   @override
   State<AssistantScreen> createState() => _AssistantScreenState();
@@ -30,7 +35,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
   @override
   void initState() {
     super.initState();
-    _start(widget.issue, widget.attachment);
+    if (widget.issue.isNotEmpty || widget.attachment != null) {
+      _start(
+        widget.issue.isEmpty ? 'Please review my attachment.' : widget.issue,
+        widget.attachment,
+      );
+    }
   }
 
   void _start(String issue, String? attachment) {
@@ -212,8 +222,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 children: [
                   RoundAction(LucideIcons.plus, 'Attach media', () async {
                     final file = await pickAttachment(context);
-                    if (mounted && file != null)
+                    if (mounted && file != null) {
                       setState(() => _attachment = file.name);
+                    }
                   }),
                   Expanded(
                     child: TextField(
@@ -476,7 +487,10 @@ class _DiagnosticCard extends StatelessWidget {
             curve: motionCurve,
             tween: Tween(begin: .78, end: 1),
             builder: (_, value, _) => Text(
-              '\$${(value * result.low).round()} – \$${(value * result.high).round()}',
+              formatEstimate(
+                (value * result.low).round(),
+                (value * result.high).round(),
+              ),
               style: AppTypography.label.merge(AppTypography.number),
             ),
           ),
@@ -499,7 +513,10 @@ class _DiagnosticCard extends StatelessWidget {
           width: double.infinity,
           child: PillButton('Find a Technician', () {
             FocusScope.of(context).unfocus();
-            openFlow(context, TrackingScreen(result: result));
+            openFlow(
+              context,
+              TrackingScreen(result: result, neighborhood: widget.neighborhood),
+            );
           }, trailing: LucideIcons.arrowUpRight),
         ),
       ],

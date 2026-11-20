@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'package:intl/intl.dart';
+import '../../app/preferences.dart';
+import 'profile_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/lucide_icons.dart';
@@ -6,7 +10,6 @@ import '../../app/theme.dart';
 import '../../core/surfaces.dart';
 import '../assistant/assistant_screen.dart';
 import '../service_data.dart';
-import '../tracking/tracking_screen.dart';
 
 const _categories = [
   (name: 'HVAC', icon: LucideIcons.snowflake, prompt: initialIssue),
@@ -33,19 +36,79 @@ const _categories = [
 ];
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required this.settings});
+  final AppPreferences settings;
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   final _prompt = TextEditingController();
-  String _address = MockServiceRepository.addresses.first;
+  AppPreferences get _settings => widget.settings;
+  String get _address =>
+      _settings.neighborhood.isEmpty ? 'Dar es Salaam' : _settings.neighborhood;
+  String get _initial => _settings.name.isEmpty
+      ? '•'
+      : _settings.name.characters.first.toUpperCase();
+  DateTime _time = darTime(DateTime.now());
+  Timer? _clock;
+
+  @override
+  void initState() {
+    super.initState();
+    _settings.addListener(_refresh);
+    _clock = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => setState(() => _time = darTime(DateTime.now())),
+    );
+  }
+
+  void _refresh() => setState(() {});
+
+  Future<void> _save(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save your settings. Please try again.'),
+          ),
+        );
+    }
+  }
+
+  void _editProfile() =>
+      showPanel<void>(context, 'Edit profile', [ProfileEditor(_settings)]);
+
+  void _openSettings() => showPanel<void>(context, 'Settings', [
+    ListenableBuilder(
+      listenable: _settings,
+      builder: (_, _) => SwitchListTile(
+        title: const Text('Reduce motion'),
+        subtitle: const Text('Limit transitions and route animation'),
+        value: _settings.reduceMotion,
+        onChanged: (value) => _save(() => _settings.saveMotion(value)),
+      ),
+    ),
+    const ListTile(
+      title: Text('Region and currency'),
+      subtitle: Text('Dar es Salaam, Tanzania · TZS'),
+    ),
+    const ListTile(
+      title: Text('About this build'),
+      subtitle: Text(
+        'Profile and settings stay on this device. Estimates and technician dispatch are simulated.',
+      ),
+    ),
+  ]);
   XFile? _attachment;
   int _tab = 0;
 
   @override
   void dispose() {
+    _clock?.cancel();
+    _settings.removeListener(_refresh);
     _prompt.dispose();
     super.dispose();
   }
@@ -56,23 +119,31 @@ class _HomeScreenState extends State<HomeScreen> {
     openFlow(
       context,
       AssistantScreen(
-        issue: issue.isEmpty ? initialIssue : issue,
+        issue: issue,
+        neighborhood: _settings.neighborhood,
         attachment: prompt == null ? _attachment?.name : null,
       ),
     );
   }
 
   Future<void> _chooseAddress() async {
-    final address = await showPanel<String>(context, 'Service address', [
-      for (final address in MockServiceRepository.addresses)
-        ListTile(
-          leading: const Icon(LucideIcons.mapPin),
-          title: Text(address),
-          trailing: address == _address ? const Icon(LucideIcons.check) : null,
-          onTap: () => Navigator.pop(context, address),
-        ),
-    ]);
-    if (mounted && address != null) setState(() => _address = address);
+    final address = await showPanel<String>(
+      context,
+      'Choose a Dar es Salaam neighborhood',
+      [
+        for (final address in MockServiceRepository.addresses)
+          ListTile(
+            leading: const Icon(LucideIcons.mapPin),
+            title: Text(address),
+            trailing: address == _address
+                ? const Icon(LucideIcons.check)
+                : null,
+            onTap: () => Navigator.pop(context, address),
+          ),
+      ],
+    );
+    if (mounted && address != null)
+      await _save(() => _settings.saveNeighborhood(address));
   }
 
   Future<void> _attach() async {
@@ -99,50 +170,33 @@ class _HomeScreenState extends State<HomeScreen> {
     ],
   );
 
-  Widget _booking() => GlassSurface(
+  Widget _bookingsEmpty() => GlassSurface(
     radius: 24,
-    padding: const EdgeInsets.all(10),
+    padding: const EdgeInsets.all(15),
     child: Row(
       children: [
-        acPhoto(76),
-        const SizedBox(width: 11),
+        const Icon(LucideIcons.calendarDays, color: AppColors.auraCoralDeep),
+        const SizedBox(width: 12),
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.badgePeachBg,
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Text(
-                    'Tomorrow 10:00 AM',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      fontFeatures: AppTypography.numberFeatures,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5),
-              Text('AC Maintenance', style: AppTypography.label),
+              Text('No upcoming bookings', style: AppTypography.label),
               SizedBox(height: 3),
-              Text('With Mike Richardson', style: AppTypography.caption),
+              Text(
+                'Start with a service to explore your options.',
+                style: AppTypography.caption,
+              ),
             ],
           ),
         ),
-        PillButton(
-          'View',
-          () => openFlow(
-            context,
-            const TrackingScreen(result: MockServiceRepository.maintenance),
+        if (_tab == 2)
+          PillButton(
+            'Services',
+            () => setState(() => _tab = 1),
+            dark: false,
+            height: 36,
           ),
-          dark: false,
-          height: 36,
-        ),
       ],
     ),
   );
@@ -269,16 +323,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _page() => switch (_tab) {
     0 => [
-      const Reveal(
+      Reveal(
         delay: 45,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Mon, Sep 22', style: AppTypography.caption),
-            SizedBox(height: 7),
             Text(
-              'Good Morning,\nShamim',
-              style: TextStyle(
+              '${DateFormat('EEE, d MMM y').format(_time)} · EAT',
+              style: AppTypography.caption,
+            ),
+            const SizedBox(height: 7),
+            Text(
+              '${darGreeting(_time.hour)}${_settings.name.isEmpty ? '' : ',\n${_settings.name}'}',
+              style: const TextStyle(
                 fontSize: 28,
                 height: 1.12,
                 letterSpacing: -.8,
@@ -305,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _section('Upcoming service'),
             const SizedBox(height: 9),
-            _booking(),
+            _bookingsEmpty(),
           ],
         ),
       ),
@@ -327,24 +384,43 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
     ],
-    2 => [_section('Your bookings'), const SizedBox(height: 12), _booking()],
+    2 => [
+      _section('Your bookings'),
+      const SizedBox(height: 12),
+      _bookingsEmpty(),
+    ],
     _ => [
       const Text('Your profile', style: AppTypography.title),
       const SizedBox(height: 12),
       GlassSurface(
         child: Column(
           children: [
-            const ListTile(
-              leading: CircleAvatar(child: Text('S')),
-              title: Text('Shamim'),
-              subtitle: Text('DetechX demo account'),
+            ListTile(
+              leading: CircleAvatar(child: Text(_initial)),
+              title: Text(
+                _settings.name.isEmpty ? 'Set up your profile' : _settings.name,
+              ),
+              subtitle: Text(
+                _settings.phone.isEmpty
+                    ? 'Edit name and contact details'
+                    : _settings.phone,
+              ),
+              trailing: const Icon(LucideIcons.chevronRight),
+              onTap: _editProfile,
             ),
             ListTile(
               leading: const Icon(LucideIcons.mapPin),
               title: Text(_address),
-              subtitle: const Text('Default service address'),
+              subtitle: const Text('Service neighborhood'),
               trailing: const Icon(LucideIcons.chevronRight),
               onTap: _chooseAddress,
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.wrench),
+              title: const Text('Settings'),
+              subtitle: const Text('Motion, region and app information'),
+              trailing: const Icon(LucideIcons.chevronRight),
+              onTap: _openSettings,
             ),
           ],
         ),
@@ -366,50 +442,73 @@ class _HomeScreenState extends State<HomeScreen> {
             radius: 99,
             blur: true,
             padding: const EdgeInsets.all(5),
-            child: Row(
-              children: [
-                for (final (index, tab) in tabs.indexed)
-                  Expanded(
-                    flex: _tab == index ? 2 : 1,
-                    child: SpringScaleTap(
-                      label: tab.$2,
-                      selected: _tab == index,
-                      onTap: () => setState(() => _tab = index),
-                      child: AnimatedContainer(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 260),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final unit = constraints.maxWidth / 5;
+                final duration = MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 300);
+                return SizedBox(
+                  height: 44,
+                  child: Stack(
+                    children: [
+                      AnimatedPositioned(
+                        duration: duration,
                         curve: motionCurve,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: _tab == index
-                              ? AppColors.badgePeachBg
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(tab.$1, size: 18),
-                            if (_tab == index) ...[
-                              const SizedBox(width: 5),
-                              Flexible(
-                                child: Text(
-                                  tab.$2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
+                        left: unit * _tab,
+                        width: unit * 2,
+                        top: 0,
+                        bottom: 0,
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.badgePeachBg,
+                            borderRadius: BorderRadius.all(Radius.circular(99)),
+                          ),
                         ),
                       ),
-                    ),
+                      for (final (index, tab) in tabs.indexed)
+                        AnimatedPositioned(
+                          key: ValueKey(index),
+                          duration: duration,
+                          curve: motionCurve,
+                          left: unit * (index + (index > _tab ? 1 : 0)),
+                          width: unit * (index == _tab ? 2 : 1),
+                          top: 0,
+                          bottom: 0,
+                          child: SpringScaleTap(
+                            label: tab.$2,
+                            selected: index == _tab,
+                            onTap: () => setState(() => _tab = index),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(tab.$1, size: 18),
+                                if (index == _tab)
+                                  Flexible(
+                                    child: Reveal(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(left: 4),
+                                        child: Text(
+                                          tab.$2,
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-              ],
+                );
+              },
             ),
           ),
         ),
@@ -498,9 +597,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               alignment: Alignment.center,
-                              child: const Text(
-                                'S',
-                                style: TextStyle(
+                              child: Text(
+                                _initial,
+                                style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w600,
                                 ),
