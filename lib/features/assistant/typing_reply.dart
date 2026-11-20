@@ -8,8 +8,9 @@ class TypingReply extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (MediaQuery.disableAnimationsOf(context))
+    if (MediaQuery.disableAnimationsOf(context)) {
       return Text(text, style: style);
+    }
     final characters = text.characters;
     return Semantics(
       label: text,
