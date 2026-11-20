@@ -8,6 +8,7 @@ import '../../app/theme.dart';
 import '../../core/surfaces.dart';
 import '../service_data.dart';
 import '../tracking/tracking_screen.dart';
+import 'typing_reply.dart';
 
 class AssistantScreen extends StatefulWidget {
   const AssistantScreen({
@@ -94,6 +95,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
       setState(() {
         _thinking = false;
         _result = _repository.diagnose(issue, answer);
+        _messages.add(
+          const ChatMessage(
+            'Asante! Here’s what a technician can check first, with an estimated cost.',
+          ),
+        );
       });
       _scrollToLatest();
     });
@@ -187,14 +193,23 @@ class _AssistantScreenState extends State<AssistantScreen> {
               bottomRight: Radius.circular(message.user ? 6 : 19),
             ),
           ),
-          child: Text(
-            message.text,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.4,
-              color: message.user ? Colors.white : AppColors.inkPrimary,
-            ),
-          ),
+          child: message.user
+              ? Text(
+                  message.text,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.4,
+                    color: Colors.white,
+                  ),
+                )
+              : TypingReply(
+                  message.text,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.4,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
         ),
       ),
     ),
@@ -296,9 +311,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
                             'Tell me what’s happening at home to get started.',
                           ),
                         ),
-                      for (final (index, message) in _messages.indexed)
+                      for (final message in _messages)
                         Reveal(
-                          key: ValueKey(index),
+                          key: ObjectKey(message),
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: _bubble(message),

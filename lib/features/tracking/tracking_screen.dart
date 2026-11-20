@@ -4,6 +4,7 @@ import '../../core/lucide_icons.dart';
 import '../../app/theme.dart';
 import '../../core/surfaces.dart';
 import '../service_data.dart';
+import '../payments/service_checkout.dart';
 import 'dotted_map.dart';
 
 class TrackingScreen extends StatefulWidget {
@@ -31,6 +32,150 @@ class _TrackingScreenState extends State<TrackingScreen>
   );
   late final _sheet = AnimationController.unbounded(vsync: this);
   bool _animated = false;
+  late final ServiceCheckout _checkout;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkout = ServiceCheckout(
+      ServiceInvoice(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        amountTzs: widget.result.low,
+        description: widget.result.service,
+      ),
+      const SimulatedPaymentGateway(),
+    )..addListener(_onStageChange);
+    _trip.addStatusListener(_onTripStatus);
+  }
+
+  void _onTripStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed &&
+        _checkout.stage == ServiceStage.enRoute) {
+      _checkout.advance();
+    }
+  }
+
+  void _onStageChange() {
+    if (_checkout.stage != ServiceStage.enRoute && !_trip.isCompleted) {
+      _trip.value = 1;
+    }
+    setState(() {});
+  }
+
+  Future<void> _reviewInvoice() async {
+    final invoice = _checkout.invoice;
+    final confirmed = await showPanel<bool>(context, 'Review invoice', [
+      Text(invoice.description, style: AppTypography.label),
+      const SizedBox(height: 6),
+      Text(
+        formatTzs(invoice.amountTzs),
+        style: AppTypography.title.merge(AppTypography.number),
+      ),
+      const SizedBox(height: 12),
+      const Text(
+        'This is a test invoice. Confirming will not send a mobile-money prompt or charge you.',
+      ),
+      const SizedBox(height: 16),
+      PillButton('Confirm test payment', () => Navigator.pop(context, true)),
+    ]);
+    if (mounted && confirmed == true) await _checkout.pay();
+  }
+
+  void _showReceipt() {
+    final receipt = _checkout.receipt!;
+    showPanel<void>(context, 'Test receipt', [
+      Text(_checkout.invoice.description, style: AppTypography.label),
+      const SizedBox(height: 6),
+      Text(
+        formatTzs(receipt.amountTzs),
+        style: AppTypography.title.merge(AppTypography.number),
+      ),
+      const SizedBox(height: 6),
+      Text('Reference: ${receipt.reference}', style: AppTypography.caption),
+      const SizedBox(height: 6),
+      const Text('No money was collected.'),
+    ]);
+  }
+
+  Widget _serviceProgress() {
+    final (
+      String title,
+      String detail,
+      String action,
+      VoidCallback? callback,
+    ) = switch (_checkout.stage) {
+      ServiceStage.enRoute => (
+        'Fundi yuko njiani',
+        'Track your technician’s arrival.',
+        'Confirm arrival',
+        _checkout.advance,
+      ),
+      ServiceStage.arrived => (
+        'Fundi amefika',
+        'Start the service when you’re ready.',
+        'Start work',
+        _checkout.advance,
+      ),
+      ServiceStage.working => (
+        'Kazi inaendelea',
+        'Confirm completion only after checking the work.',
+        'Confirm work complete',
+        _checkout.advance,
+      ),
+      ServiceStage.invoiceReady => (
+        'Kazi imekamilika',
+        _checkout.paymentFailed
+            ? 'Test payment failed. You can try again.'
+            : 'Review the final test invoice before paying.',
+        'Review & pay',
+        _reviewInvoice,
+      ),
+      ServiceStage.paymentPending => (
+        'Malipo yanasubiri',
+        'Confirming your test payment…',
+        '',
+        null,
+      ),
+      ServiceStage.paid => (
+        'Malipo yamekamilika',
+        'Test payment complete · no money collected.',
+        'View receipt',
+        _showReceipt,
+      ),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: GlassSurface(
+        radius: 20,
+        shadow: false,
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AnimatedSwitcher(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 210),
+              child: Column(
+                key: ValueKey(_checkout.stage),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(title, style: AppTypography.label),
+                  const SizedBox(height: 3),
+                  Text(detail, style: AppTypography.caption),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            if (callback != null)
+              PillButton(action, callback, height: 40)
+            else
+              const LinearProgressIndicator(),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void didChangeDependencies() {
@@ -52,6 +197,7 @@ class _TrackingScreenState extends State<TrackingScreen>
 
   @override
   void dispose() {
+    _checkout.dispose();
     _route.dispose();
     _trip.dispose();
     _sheet.dispose();
@@ -268,6 +414,7 @@ class _TrackingScreenState extends State<TrackingScreen>
                 ),
               ],
             ),
+            _serviceProgress(),
           ],
         ),
       ),
@@ -315,7 +462,8 @@ class _TrackingScreenState extends State<TrackingScreen>
                 ),
               ),
             ),
-            if (limits.maxHeight > 410)
+            if (limits.maxHeight > 410 &&
+                _checkout.stage == ServiceStage.enRoute)
               Positioned(
                 top: (limits.maxHeight - 150) * .39 + 12,
                 right: limits.maxWidth * .10,

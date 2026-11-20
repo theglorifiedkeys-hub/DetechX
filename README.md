@@ -31,3 +31,7 @@ flutter build web
 ```
 
 The widget tests cover issue handoff, keyboard insets, estimate propagation, and the simulated call sheet at 360px and 430px widths. CI runs analysis, tests, and a web build.
+
+### Test a service through payment
+
+On tracking, confirm the fundi has arrived, start work, confirm completion, review the TZS test invoice, and confirm a test payment. A local receipt appears; no mobile-money prompt or charge is sent. The visit and receipt are session-only. See [the Snippe integration plan](docs/snippe-payments.md) for merchant onboarding and the backend steps needed to enable real payments.

@@ -108,6 +108,7 @@ class MockServiceRepository {
 }
 
 final _tzs = NumberFormat.decimalPattern('en');
+String formatTzs(int amount) => 'TZS ${_tzs.format(amount)}';
 String formatEstimate(int low, int high) =>
     'TZS ${_tzs.format(low)} – ${_tzs.format(high)}';
 DateTime darTime(DateTime time) => time.toUtc().add(const Duration(hours: 3));
