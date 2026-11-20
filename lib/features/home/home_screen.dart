@@ -356,6 +356,28 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () => setState(() => _tab = 1),
       ),
       _services(),
+      const SizedBox(height: 14),
+      GlassSurface(
+        radius: 22,
+        child: Column(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.map_outlined),
+              title: const Text('Try the Dar map demo'),
+              subtitle: const Text('Compare illustrated and street maps'),
+              trailing: const Icon(LucideIcons.chevronRight),
+              onTap: () => Navigator.pushNamed(context, '/map'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_outlined),
+              title: const Text('Admin demo'),
+              subtitle: const Text('Assign a fundi and manage sample jobs'),
+              trailing: const Icon(LucideIcons.chevronRight),
+              onTap: () => Navigator.pushNamed(context, '/admin'),
+            ),
+          ],
+        ),
+      ),
       const SizedBox(height: 20),
       Reveal(
         delay: 180,

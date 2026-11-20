@@ -23,7 +23,20 @@ jobs:
           fi
           exit "$status"
       - run: flutter test
+  web-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          cache: true
       - run: flutter build web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DetechX-Website
+          path: build/web
+          if-no-files-found: error
   android-apk:
     runs-on: ubuntu-latest
     steps:
@@ -40,8 +53,12 @@ jobs:
         run: |
           flutter create --no-pub --platforms=android --org com.detechx --project-name detechx "$RUNNER_TEMP/detechx"
           cp -R "$RUNNER_TEMP/detechx/android" android
+          sed -i '/<application/i\    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
           sed -i 's/android:label="detechx"/android:label="DetechX"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
+          # Current Android plugins use Kotlin 2.2 bytecode.
+          sed -Ei 's/(id\("com.android.application"\) version )"[^"]+"/\1"8.12.1"/; s/(id\("org.jetbrains.kotlin.android"\) version )"[^"]+"/\1"2.2.0"/' android/settings.gradle.kts
+          sed -Ei 's/gradle-[0-9.]+-(all|bin)\.zip/gradle-8.13-\1.zip/' android/gradle/wrapper/gradle-wrapper.properties
       - name: Build installable APK
         run: |
           set +e
